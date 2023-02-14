@@ -1,20 +1,20 @@
-import {isDeepStrictEqual} from 'util';
+import { isDeepStrictEqual } from 'util';
 import fs = require('fs');
 import path = require('path');
 import crypto = require('crypto');
 import assert = require('assert');
-import {EventEmitter} from 'events';
+import { EventEmitter } from 'events';
 import dotProp = require('dot-prop');
 import pkgUp = require('pkg-up');
 import envPaths = require('env-paths');
 import atomically = require('atomically');
-import Ajv, {ValidateFunction as AjvValidateFunction} from 'ajv';
+import Ajv, { ValidateFunction as AjvValidateFunction } from 'ajv';
 import ajvFormats from 'ajv-formats';
 import debounceFn = require('debounce-fn');
 import semver = require('semver');
 import onetime = require('onetime');
-import {JSONSchema} from 'json-schema-typed';
-import {Deserialize, Migrations, OnDidChangeCallback, Options, Serialize, Unsubscribe, Schema, OnDidAnyChangeCallback, BeforeEachMigrationCallback} from './types';
+import { JSONSchema } from 'json-schema-typed';
+import { Deserialize, Migrations, OnDidChangeCallback, Options, Serialize, Unsubscribe, Schema, OnDidAnyChangeCallback, BeforeEachMigrationCallback } from './types';
 
 const encryptionAlgorithm = 'aes-256-cbc';
 
@@ -28,12 +28,12 @@ const isExist = <T = unknown>(data: T): boolean => {
 
 let parentDir = '';
 try {
-// Prevent caching of this module so module.parent is always accurate.
-// Note: This trick won't work with ESM or inside a webworker
-// eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+	// Prevent caching of this module so module.parent is always accurate.
+	// Note: This trick won't work with ESM or inside a webworker
+	// eslint-disable-next-line @typescript-eslint/no-dynamic-delete
 	delete require.cache[__filename];
 	parentDir = path.dirname(module.parent?.filename ?? '.');
-} catch {}
+} catch { }
 
 const checkValueType = (key: string, value: unknown): void => {
 	const nonJsonTypes = new Set([
@@ -72,7 +72,7 @@ class Conf<T extends Record<string, any> = Record<string, unknown>> implements I
 		};
 
 		const getPackageData = onetime(() => {
-			const packagePath = pkgUp.sync({cwd: parentDir});
+			const packagePath = pkgUp.sync({ cwd: parentDir });
 			// Can't use `require` because of Webpack being annoying:
 			// https://github.com/webpack/webpack/issues/196
 			const packageData = packagePath && JSON.parse(fs.readFileSync(packagePath, 'utf8'));
@@ -89,7 +89,7 @@ class Conf<T extends Record<string, any> = Record<string, unknown>> implements I
 				throw new Error('Project name could not be inferred. Please specify the `projectName` option.');
 			}
 
-			options.cwd = envPaths(options.projectName, {suffix: options.projectSuffix}).config;
+			options.cwd = envPaths(options.projectName, { suffix: options.projectSuffix }).config;
 		}
 
 		this.#options = options;
@@ -183,7 +183,7 @@ class Conf<T extends Record<string, any> = Record<string, unknown>> implements I
 			return this._get(key, defaultValue);
 		}
 
-		const {store} = this;
+		const { store } = this;
 		return key in store ? store[key] : defaultValue;
 	}
 
@@ -209,7 +209,7 @@ class Conf<T extends Record<string, any> = Record<string, unknown>> implements I
 			throw new TypeError(`Please don't use the ${INTERNAL_KEY} key, as it's used to manage this module internal operations.`);
 		}
 
-		const {store} = this;
+		const { store } = this;
 
 		const set = (key: string, value?: T[Key] | T | unknown): void => {
 			checkValueType(key, value);
@@ -266,7 +266,7 @@ class Conf<T extends Record<string, any> = Record<string, unknown>> implements I
 	@param key - The key of the item to delete.
 	*/
 	delete<Key extends keyof T>(key: Key): void {
-		const {store} = this;
+		const { store } = this;
 		if (this.#options.accessPropertiesByDotNotation) {
 			dotProp.delete(store, key as string);
 		} else {
@@ -362,7 +362,7 @@ class Conf<T extends Record<string, any> = Record<string, unknown>> implements I
 		this.events.emit('change');
 	}
 
-	* [Symbol.iterator](): IterableIterator<[keyof T, T[keyof T]]> {
+	*[Symbol.iterator](): IterableIterator<[keyof T, T[keyof T]]> {
 		for (const [key, value] of Object.entries(this.store)) {
 			yield [key, value];
 		}
@@ -387,9 +387,9 @@ class Conf<T extends Record<string, any> = Record<string, unknown>> implements I
 						const decipher = crypto.createDecipher(encryptionAlgorithm, this.#encryptionKey);
 						data = Buffer.concat([decipher.update(Buffer.from(data)), decipher.final()]).toString('utf8');
 					}
-				} catch {}
+				} catch { }
 			}
-		} catch {}
+		} catch { }
 
 		return data.toString();
 	}
@@ -440,13 +440,13 @@ class Conf<T extends Record<string, any> = Record<string, unknown>> implements I
 		}
 
 		const errors = this.#validator.errors
-			.map(({instancePath, message = ''}) => `\`${instancePath.slice(1)}\` ${message}`);
+			.map(({ instancePath, message = '' }) => `\`${instancePath.slice(1)}\` ${message}`);
 		throw new Error('Config schema violation: ' + errors.join('; '));
 	}
 
 	private _ensureDirectory(): void {
 		// Ensure the directory exists as it could have been deleted in the meantime.
-		fs.mkdirSync(path.dirname(this.path), {recursive: true});
+		fs.mkdirSync(path.dirname(this.path), { recursive: true });
 	}
 
 	private _write(value: T): void {
@@ -461,17 +461,17 @@ class Conf<T extends Record<string, any> = Record<string, unknown>> implements I
 
 		// Temporary workaround for Conf being packaged in a Ubuntu Snap app.
 		// See https://github.com/sindresorhus/conf/pull/82
-		if (process.env.SNAP) {
-			fs.writeFileSync(this.path, data, {mode: this.#options.configFileMode});
+		if (process && process.env.SNAP) {
+			fs.writeFileSync(this.path, data, { mode: this.#options.configFileMode });
 		} else {
 			try {
-				atomically.writeFileSync(this.path, data, {mode: this.#options.configFileMode});
+				atomically.writeFileSync(this.path, data, { mode: this.#options.configFileMode });
 			} catch (error: any) {
 				// Fix for https://github.com/sindresorhus/electron-store/issues/106
 				// Sometimes on Windows, we will get an EXDEV error when atomic writing
 				// (even though to the same directory), so we fall back to non atomic write
 				if (error?.code === 'EXDEV') {
-					fs.writeFileSync(this.path, data, {mode: this.#options.configFileMode});
+					fs.writeFileSync(this.path, data, { mode: this.#options.configFileMode });
 					return;
 				}
 
@@ -487,15 +487,15 @@ class Conf<T extends Record<string, any> = Record<string, unknown>> implements I
 			this._write(createPlainObject<T>());
 		}
 
-		if (process.platform === 'win32') {
-			fs.watch(this.path, {persistent: false}, debounceFn(() => {
-			// On Linux and Windows, writing to the config file emits a `rename` event, so we skip checking the event type.
+		if (process && process.platform === 'win32') {
+			fs.watch(this.path, { persistent: false }, debounceFn(() => {
+				// On Linux and Windows, writing to the config file emits a `rename` event, so we skip checking the event type.
 				this.events.emit('change');
-			}, {wait: 100}));
+			}, { wait: 100 }));
 		} else {
-			fs.watchFile(this.path, {persistent: false}, debounceFn(() => {
+			fs.watchFile(this.path, { persistent: false }, debounceFn(() => {
 				this.events.emit('change');
-			}, {wait: 5000}));
+			}, { wait: 5000 }));
 		}
 	}
 
@@ -505,7 +505,7 @@ class Conf<T extends Record<string, any> = Record<string, unknown>> implements I
 		const newerVersions = Object.keys(migrations)
 			.filter(candidateVersion => this._shouldPerformMigration(candidateVersion, previousMigratedVersion, versionToMigrate));
 
-		let storeBackup = {...this.store};
+		let storeBackup = { ...this.store };
 
 		for (const version of newerVersions) {
 			try {
@@ -524,7 +524,7 @@ class Conf<T extends Record<string, any> = Record<string, unknown>> implements I
 				this._set(MIGRATION_KEY, version);
 
 				previousMigratedVersion = version;
-				storeBackup = {...this.store};
+				storeBackup = { ...this.store };
 			} catch (error) {
 				this.store = storeBackup;
 
@@ -594,14 +594,14 @@ class Conf<T extends Record<string, any> = Record<string, unknown>> implements I
 	}
 
 	private _set(key: string, value: unknown): void {
-		const {store} = this;
+		const { store } = this;
 		dotProp.set(store, key, value);
 
 		this.store = store;
 	}
 }
 
-export {Schema, Options};
+export { Schema, Options };
 
 export default Conf;
 
